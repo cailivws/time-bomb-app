@@ -9,12 +9,33 @@ let totalTime = 0;
 let timerId = null;
 let animationId = null;
 
+function getBezierPoint(t, p0, p1, p2, p3) {
+    const cx = 3 * (p1.x - p0.x);
+    const bx = 3 * (p2.x - p1.x) - cx;
+    const ax = p3.x - p0.x - cx - bx;
+
+    const cy = 3 * (p1.y - p0.y);
+    const by = 3 * (p2.y - p1.y) - cy;
+    const ay = p3.y - p0.y - cy - by;
+
+    const x = (ax * Math.pow(t, 3)) + (bx * Math.pow(t, 2)) + (cx * t) + p0.x;
+    const y = (ay * Math.pow(t, 3)) + (by * Math.pow(t, 2)) + (cy * t) + p0.y;
+
+    return { x, y };
+}
+
 function drawBomb(progress) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2 + 30;
     const radius = 80;
+
+    // Define Fuse Path Points
+    const p0 = { x: centerX, y: centerY - radius - 15 };
+    const p1 = { x: centerX, y: centerY - radius - 80 };
+    const p2 = { x: centerX + 100, y: centerY - radius - 80 };
+    const p3 = { x: centerX + 100, y: centerY - radius - 20 };
 
     // Draw Bomb Body
     ctx.beginPath();
@@ -29,34 +50,27 @@ function drawBomb(progress) {
     ctx.fillStyle = '#222';
     ctx.fillRect(centerX - 20, centerY - radius - 15, 40, 20);
 
-    // Draw Fuse (Tinder)
+    // Draw Remaining Fuse (Tinder)
+    // We only draw the segment from start (p0) to where the spark is (progress)
     ctx.beginPath();
-    ctx.moveTo(centerX, centerY - radius - 15);
+    ctx.moveTo(p0.x, p0.y);
     
-    // Curved fuse path
-    const fuseLength = 100;
-    const currentFuseLength = fuseLength * progress;
-    
-    ctx.setLineDash([5, 3]);
+    // To draw a partial bezier, we approximate with small steps
     ctx.strokeStyle = '#8B4513';
     ctx.lineWidth = 4;
-    
-    ctx.bezierCurveTo(
-        centerX, centerY - radius - 80,
-        centerX + 100, centerY - radius - 80,
-        centerX + 100, centerY - radius - 20
-    );
+    ctx.setLineDash([5, 3]);
+
+    for (let t = 0; t <= progress; t += 0.01) {
+        const pt = getBezierPoint(t, p0, p1, p2, p3);
+        ctx.lineTo(pt.x, pt.y);
+    }
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Draw Spark
+    // Draw Spark at the current progress point
     if (progress > 0) {
-        // Calculate point on path (simplified for demo)
-        // For a real burn effect, we'd calculate the exact point on the bezier
-        const sparkX = centerX + (100 * (1-progress)); // Dummy calculation
-        const sparkY = centerY - radius - 80;
-
-        drawSpark(centerX + 50, centerY - radius - 70);
+        const sparkPt = getBezierPoint(progress, p0, p1, p2, p3);
+        drawSpark(sparkPt.x, sparkPt.y);
     }
 }
 
