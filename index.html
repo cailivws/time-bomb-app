@@ -4,17 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Time Bomb</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>Time Bomb</h1>
-        <div id="controls">
-            <input type="number" id="minutes" min="1" max="60" value="10">
-            <label for="minutes">Minutes</label>
-            <button id="startBtn">Start Timer</button>
+        <h1>TIME BOMB</h1>
+        <div class="timer-wrapper">
+            <div id="timerDisplay">00:00</div>
         </div>
-        <div id="timerDisplay">00:00</div>
+        <div id="controls">
+            <div class="input-group">
+                <input type="number" id="minutes" min="1" max="60" value="10">
+                <label for="minutes">MINUTES</label>
+            </div>
+            <button id="startBtn">ARM DEVICE</button>
+        </div>
         <canvas id="bombCanvas" width="400" height="400"></canvas>
     </div>
     <script src="script.js"></script>
