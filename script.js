@@ -244,28 +244,21 @@ function drawFuse(percentage) {
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     
-    // Base thick rope (Lighter for visibility)
+    // 1. Reset Line Dash FIRST to ensure visibility
+    ctx.setLineDash([]);
+
+    // 2. Draw Base Rope (Thick & Dark)
     ctx.lineWidth = 8;
-    ctx.strokeStyle = "#5D4037"; // Medium Brown base
+    ctx.strokeStyle = "#3E2723"; // Solid Dark Brown
     ctx.stroke();
     
-    // Braided texture - High Contrast Strands
+    // 3. Draw Texture (Light overlay)
     ctx.lineWidth = 3;
-    
-    // Strand 1
-    ctx.strokeStyle = "#8D6E63"; // Light Brown
-    ctx.setLineDash([3, 3]);
-    ctx.lineDashOffset = 0;
+    ctx.strokeStyle = "#A1887F"; // Light Tan
+    ctx.setLineDash([4, 4]);
     ctx.stroke();
     
-    // Strand 2 (Offset)
-    ctx.strokeStyle = "#D7CCC8"; // Very Light Tan (Pop out)
-    ctx.setLineDash([3, 3]);
-    ctx.lineDashOffset = 3;
-    ctx.stroke();
-    
-    // No light fraying (removed white-ish color)
-    
+    // 4. Reset again
     ctx.setLineDash([]);
 }
 
