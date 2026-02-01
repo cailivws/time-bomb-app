@@ -245,30 +245,26 @@ function drawFuse(percentage) {
     ctx.lineJoin = "round";
     
     // Base thick dark rope
-    ctx.lineWidth = 7;
-    ctx.strokeStyle = "#3E2723"; // Dark brown
+    ctx.lineWidth = 8;
+    ctx.strokeStyle = "#2D1E12"; // Very Dark brown (almost black)
     ctx.stroke();
     
-    // Braided texture - multiple offset dashed lines
-    ctx.lineWidth = 2;
+    // Braided texture - darker strands
+    ctx.lineWidth = 3;
     
     // Strand 1
-    ctx.strokeStyle = "#8D6E63"; // Light brown
-    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = "#4E342E"; // Medium dark brown
+    ctx.setLineDash([3, 3]);
     ctx.lineDashOffset = 0;
     ctx.stroke();
     
     // Strand 2 (Offset)
-    ctx.strokeStyle = "#A1887F"; // Lighter tan
-    ctx.setLineDash([4, 4]);
-    ctx.lineDashOffset = 4;
+    ctx.strokeStyle = "#5D4037"; // Slightly lighter brown (not white)
+    ctx.setLineDash([3, 3]);
+    ctx.lineDashOffset = 3;
     ctx.stroke();
     
-    // Rough edges (messy tinder feel)
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = "#D7CCC8"; // Very light fraying
-    ctx.setLineDash([2, 10]);
-    ctx.stroke();
+    // No light fraying (removed white-ish color)
     
     ctx.setLineDash([]);
 }
