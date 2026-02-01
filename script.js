@@ -16,6 +16,109 @@ window.onload = function() {
     let fusePoints = [];
     let particles = [];
 
+    // --- Audio System (Web Audio API) ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContext();
+    let hissNode = null;
+
+    function playTick() {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc.type = 'triangle';
+        osc.frequency.value = 1000; // High pitch tick
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+        
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.05);
+    }
+
+    function startHiss() {
+        if(hissNode) return;
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        
+        const bufferSize = audioCtx.sampleRate * 2; // 2 seconds
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        noise.loop = true;
+        
+        const gain = audioCtx.createGain();
+        gain.gain.value = 0.15; // Low volume hiss
+
+        // Filter to make it sound like burning
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 1000;
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        noise.start();
+        hissNode = { source: noise, gain: gain };
+    }
+
+    function stopHiss() {
+        if(hissNode) {
+            hissNode.source.stop();
+            hissNode = null;
+        }
+    }
+
+    function playBoom() {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        
+        // 1. Noise Burst (Explosion)
+        const bufferSize = audioCtx.sampleRate * 2;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        
+        const noiseGain = audioCtx.createGain();
+        noiseGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 800; // Deep rumble
+
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(audioCtx.destination);
+        noise.start();
+
+        // 2. Sub-bass sine wave (Impact)
+        const osc = audioCtx.createOscillator();
+        const oscGain = audioCtx.createGain();
+        osc.connect(oscGain);
+        oscGain.connect(audioCtx.destination);
+        
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.5);
+        
+        oscGain.gain.setValueAtTime(0.8, audioCtx.currentTime);
+        oscGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+        
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.5);
+    }
+
     // --- Generate Fuse (Deterministic) ---
     function initFuse() {
         fusePoints = [];
@@ -152,6 +255,9 @@ window.onload = function() {
         timerDisplay.textContent = "BOOM!";
         timerDisplay.style.color = "#e74c3c";
         
+        stopHiss(); // Stop burning sound
+        playBoom(); // Play explosion sound
+        
         particles = [];
         // HUGE explosion: more particles, faster speed
         for(let i=0; i<400; i++) {
@@ -190,6 +296,8 @@ window.onload = function() {
     }
 
     // --- Timer Logic ---
+    let lastTick = 0;
+
     function updateTimer() {
         if (!isRunning) return;
         
@@ -200,6 +308,12 @@ window.onload = function() {
         const m = Math.floor(sec / 60).toString().padStart(2, '0');
         const s = (sec % 60).toString().padStart(2, '0');
         timerDisplay.textContent = `${m}:${s}`;
+
+        // Tick sound every second
+        if (sec !== lastTick && sec > 0) {
+            playTick();
+            lastTick = sec;
+        }
 
         if (left <= 0) {
             triggerExplosion();
@@ -221,10 +335,14 @@ window.onload = function() {
     }
 
     startBtn.onclick = function() {
+        // Ensure AudioContext is running on user gesture
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
         if (isRunning) {
             // Stop/Reset
             isRunning = false;
             exploded = false;
+            stopHiss(); // Stop sound
             initFuse();
             startBtn.textContent = "START";
             startBtn.style.background = "";
@@ -233,8 +351,10 @@ window.onload = function() {
             // Start
             isRunning = true;
             exploded = false;
-            initFuse(); // Fresh fuse
+            startHiss(); // Start burning sound
+            initFuse(); 
             endTime = Date.now() + durationSec * 1000;
+            lastTick = durationSec;
             startBtn.textContent = "STOP";
             startBtn.style.background = "#e74c3c";
             updateTimer();
