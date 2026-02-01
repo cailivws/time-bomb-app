@@ -11,7 +11,7 @@ canvas.width = rect.width * dpr;
 canvas.height = rect.height * dpr;
 ctx.scale(dpr, dpr);
 
-let minutes = 10;
+let settingsSeconds = 60; // Default to 60 seconds
 let totalSeconds = 0;
 let remainingSeconds = 0;
 let intervalId = null;
@@ -64,11 +64,16 @@ function generateMessyFuse() {
 // --- Adjust Time ---
 window.adjustTime = function(amount) {
     if (isRunning) return;
-    minutes += amount;
-    if (minutes < 1) minutes = 1;
-    if (minutes > 60) minutes = 60;
-    minuteValueSpan.textContent = minutes;
-    timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:00`;
+    settingsSeconds += amount;
+    if (settingsSeconds < 10) settingsSeconds = 10;
+    if (settingsSeconds > 120) settingsSeconds = 120;
+    
+    minuteValueSpan.textContent = settingsSeconds;
+    
+    // Update display immediately
+    const m = Math.floor(settingsSeconds / 60);
+    const s = settingsSeconds % 60;
+    timerDisplay.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
 // --- Start/Stop ---
@@ -84,13 +89,16 @@ actionBtn.addEventListener('click', () => {
 
 function startTimer() {
     isRunning = true;
-    remainingSeconds = minutes * 60;
+    remainingSeconds = settingsSeconds;
     totalSeconds = remainingSeconds;
     
     actionBtn.textContent = "STOP";
     actionBtn.classList.add('running');
     
     generateMessyFuse(); // Regenerate a fresh mess every time
+    
+    // Update immediately so we don't wait 1s for the first tick
+    updateDisplay();
     
     intervalId = setInterval(() => {
         remainingSeconds--;
