@@ -244,22 +244,17 @@ function drawFuse(percentage) {
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     
-    // 1. Reset Line Dash FIRST to ensure visibility
+    // DEBUG: Force High Visibility
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    
     ctx.setLineDash([]);
-
-    // 2. Draw Base Rope (Thick & Dark)
-    ctx.lineWidth = 8;
-    ctx.strokeStyle = "#3E2723"; // Solid Dark Brown
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = "#D2691E"; // Chocolate / Orange-Brown
     ctx.stroke();
     
-    // 3. Draw Texture (Light overlay)
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#A1887F"; // Light Tan
-    ctx.setLineDash([4, 4]);
-    ctx.stroke();
-    
-    // 4. Reset again
-    ctx.setLineDash([]);
+    // Simple solid line for now to ensure visibility
+    // (Texture removed temporarily to debug)
 }
 
 function drawSpark(x, y) {
