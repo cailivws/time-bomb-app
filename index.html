@@ -3,26 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Time Bomb</title>
+    <title>Tick Tock Boom!</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>TIME BOMB</h1>
-        <div class="timer-wrapper">
-            <div id="timerDisplay">00:00</div>
+    <div class="app-container">
+        <h1 class="title">TICK TOCK BOOM!</h1>
+        
+        <div class="timer-display" id="timerDisplay">10:00</div>
+
+        <div class="canvas-wrapper">
+            <canvas id="gameCanvas" width="600" height="600"></canvas>
         </div>
-        <div id="controls">
-            <div class="input-group">
-                <input type="number" id="minutes" min="1" max="60" value="10">
-                <label for="minutes">MINUTES</label>
+
+        <div class="controls">
+            <div class="time-setter">
+                <button class="adjust-btn" onclick="adjustTime(-1)">-</button>
+                <span id="minuteValue">10</span> MIN
+                <button class="adjust-btn" onclick="adjustTime(1)">+</button>
             </div>
-            <button id="startBtn">ARM DEVICE</button>
+            <button id="actionBtn" class="start-btn">START!</button>
         </div>
-        <canvas id="bombCanvas" width="400" height="400"></canvas>
     </div>
     <script src="script.js"></script>
 </body>

@@ -1,134 +1,256 @@
-const canvas = document.getElementById('bombCanvas');
+const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const minutesInput = document.getElementById('minutes');
-const startBtn = document.getElementById('startBtn');
 const timerDisplay = document.getElementById('timerDisplay');
+const minuteValueSpan = document.getElementById('minuteValue');
+const actionBtn = document.getElementById('actionBtn');
 
-let timeLeft = 0;
-let totalTime = 0;
-let timerId = null;
-let animationId = null;
+// Set actual canvas size to handle high DPI screens better
+const dpr = window.devicePixelRatio || 1;
+const rect = canvas.getBoundingClientRect();
+canvas.width = rect.width * dpr;
+canvas.height = rect.height * dpr;
+ctx.scale(dpr, dpr);
 
-function getBezierPoint(t, p0, p1, p2, p3) {
-    const cx = 3 * (p1.x - p0.x);
-    const bx = 3 * (p2.x - p1.x) - cx;
-    const ax = p3.x - p0.x - cx - bx;
+let minutes = 10;
+let totalSeconds = 0;
+let remainingSeconds = 0;
+let intervalId = null;
+let isRunning = false;
+let fusePath = []; // Array of points {x, y}
 
-    const cy = 3 * (p1.y - p0.y);
-    const by = 3 * (p2.y - p1.y) - cy;
-    const ay = p3.y - p0.y - cy - by;
+// --- Logic to Generate Messy Fuse ---
+function generateMessyFuse() {
+    fusePath = [];
+    
+    // Bomb center
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2 + 50;
+    
+    // Start at top of bomb
+    let currX = centerX;
+    let currY = centerY - 60; // Top of bomb body
+    
+    fusePath.push({x: currX, y: currY});
+    
+    // Move up a bit first
+    currY -= 30;
+    fusePath.push({x: currX, y: currY});
 
-    const x = (ax * Math.pow(t, 3)) + (bx * Math.pow(t, 2)) + (cx * t) + p0.x;
-    const y = (ay * Math.pow(t, 3)) + (by * Math.pow(t, 2)) + (cy * t) + p0.y;
+    // Generate random messy chaos
+    // We want a long winding line that fills the upper area
+    const pointsCount = 150; 
+    let angle = -Math.PI / 2; // Start pointing up
+    
+    for (let i = 0; i < pointsCount; i++) {
+        // Randomly veer direction
+        angle += (Math.random() - 0.5) * 2.5; 
+        
+        // Move a small distance
+        const stepSize = 10 + Math.random() * 15;
+        currX += Math.cos(angle) * stepSize;
+        currY += Math.sin(angle) * stepSize;
+        
+        // Keep within bounds (don't go off screen or too low into bomb)
+        // Soft boundaries
+        if (currX < 50) angle = 0; 
+        if (currX > rect.width - 50) angle = Math.PI;
+        if (currY < 50) angle = Math.PI / 2;
+        if (currY > rect.height - 100) angle = -Math.PI / 2;
 
-    return { x, y };
+        fusePath.push({x: currX, y: currY});
+    }
 }
 
-function drawBomb(progress) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+// --- Adjust Time ---
+window.adjustTime = function(amount) {
+    if (isRunning) return;
+    minutes += amount;
+    if (minutes < 1) minutes = 1;
+    if (minutes > 60) minutes = 60;
+    minuteValueSpan.textContent = minutes;
+    timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:00`;
+}
+
+// --- Start/Stop ---
+actionBtn.addEventListener('click', () => {
+    if (isRunning) {
+        // Stop/Reset
+        stopTimer();
+    } else {
+        // Start
+        startTimer();
+    }
+});
+
+function startTimer() {
+    isRunning = true;
+    remainingSeconds = minutes * 60;
+    totalSeconds = remainingSeconds;
     
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2 + 30;
-    const radius = 80;
+    actionBtn.textContent = "STOP";
+    actionBtn.classList.add('running');
+    
+    generateMessyFuse(); // Regenerate a fresh mess every time
+    
+    intervalId = setInterval(() => {
+        remainingSeconds--;
+        updateDisplay();
+        if (remainingSeconds <= 0) {
+            boom();
+        }
+    }, 1000);
+    
+    animate();
+}
 
-    // Define Fuse Path Points
-    const p0 = { x: centerX, y: centerY - radius - 15 };
-    const p1 = { x: centerX, y: centerY - radius - 80 };
-    const p2 = { x: centerX + 100, y: centerY - radius - 80 };
-    const p3 = { x: centerX + 100, y: centerY - radius - 20 };
+function stopTimer() {
+    isRunning = false;
+    clearInterval(intervalId);
+    actionBtn.textContent = "START!";
+    actionBtn.classList.remove('running');
+    updateDisplay(); // Reset display text if needed
+}
 
-    // Draw Bomb Body
+function updateDisplay() {
+    if (remainingSeconds < 0) return;
+    const m = Math.floor(remainingSeconds / 60);
+    const s = remainingSeconds % 60;
+    timerDisplay.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+function boom() {
+    stopTimer();
+    timerDisplay.textContent = "BOOM!";
+    // Draw explosion
+    ctx.fillStyle = "#FF0000";
+    ctx.fillRect(0,0, rect.width, rect.height);
+}
+
+// --- Drawing ---
+
+function drawBomb() {
+    const cx = rect.width / 2;
+    const cy = rect.height / 2 + 50;
+    const r = 60;
+
+    // Bomb Body
     ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.fillStyle = '#000';
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = "#2C3E50"; // Dark blue-ish grey
     ctx.fill();
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 5;
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "#000";
     ctx.stroke();
 
-    // Draw Bomb Top
-    ctx.fillStyle = '#222';
-    ctx.fillRect(centerX - 20, centerY - radius - 15, 40, 20);
-
-    // Draw Remaining Fuse (Tinder)
-    // We only draw the segment from start (p0) to where the spark is (progress)
+    // Shine on bomb
     ctx.beginPath();
-    ctx.moveTo(p0.x, p0.y);
-    
-    // To draw a partial bezier, we approximate with small steps
-    ctx.strokeStyle = '#8B4513';
-    ctx.lineWidth = 4;
-    ctx.setLineDash([5, 3]);
+    ctx.arc(cx - 20, cy - 20, 15, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255,255,255,0.2)";
+    ctx.fill();
 
-    for (let t = 0; t <= progress; t += 0.01) {
-        const pt = getBezierPoint(t, p0, p1, p2, p3);
-        ctx.lineTo(pt.x, pt.y);
+    // Bomb Cap
+    ctx.fillStyle = "#95A5A6";
+    ctx.fillRect(cx - 20, cy - r - 15, 40, 20);
+    ctx.strokeRect(cx - 20, cy - r - 15, 40, 20);
+}
+
+function drawFuse() {
+    if (fusePath.length < 2) return;
+
+    // Calculate how much fuse to draw based on time
+    // 100% time left = 100% fuse length
+    // 0% time left = 0% fuse length (it burned down to the bomb)
+    
+    // We want the fuse to disappear as it burns.
+    // Index 0 is the BOMB. Index MAX is the TIP.
+    // Burning moves from TIP to BOMB.
+    
+    const percentage = isRunning ? (remainingSeconds / totalSeconds) : 1;
+    
+    // How many points to draw?
+    const pointsToDraw = Math.floor(fusePath.length * percentage);
+    
+    if (pointsToDraw < 1) return;
+
+    ctx.beginPath();
+    ctx.moveTo(fusePath[0].x, fusePath[0].y);
+    
+    // Draw using spline/curves for smoother look
+    for (let i = 1; i < pointsToDraw; i++) {
+        // Simple line connection for the "scribble" look
+        ctx.lineTo(fusePath[i].x, fusePath[i].y);
     }
+    
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = "#5D4037"; // Rope color
+    ctx.stroke();
+    
+    // Texture on fuse (dashed lighter line)
+    ctx.setLineDash([5, 5]);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#8D6E63";
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Draw Spark at the current progress point
-    if (progress > 0) {
-        const sparkPt = getBezierPoint(progress, p0, p1, p2, p3);
-        drawSpark(sparkPt.x, sparkPt.y);
+    // Draw Spark at the tip
+    if (isRunning && pointsToDraw > 0 && remainingSeconds > 0) {
+        const tip = fusePath[pointsToDraw - 1];
+        drawSpark(tip.x, tip.y);
     }
 }
 
 function drawSpark(x, y) {
-    const particles = 8;
-    ctx.fillStyle = '#ff0';
-    for(let i=0; i<particles; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * 15;
+    const time = Date.now() / 100;
+    const size = 15 + Math.sin(time) * 5;
+    
+    ctx.save();
+    ctx.translate(x, y);
+    
+    // Core
+    ctx.beginPath();
+    ctx.arc(0, 0, size/2, 0, Math.PI*2);
+    ctx.fillStyle = "#FFF";
+    ctx.fill();
+    
+    // Outer glow
+    ctx.beginPath();
+    ctx.arc(0, 0, size, 0, Math.PI*2);
+    ctx.fillStyle = "rgba(255, 200, 0, 0.7)";
+    ctx.fill();
+    
+    // Sparks particles
+    for(let i=0; i<8; i++) {
+        const angle = (Math.PI * 2 * i) / 8 + time;
+        const dist = size * 1.5;
+        const px = Math.cos(angle) * dist;
+        const py = Math.sin(angle) * dist;
+        
         ctx.beginPath();
-        ctx.arc(x + Math.cos(angle)*dist, y + Math.sin(angle)*dist, 2, 0, Math.PI*2);
+        ctx.arc(px, py, 3, 0, Math.PI*2);
+        ctx.fillStyle = "#FF4500";
         ctx.fill();
     }
-    ctx.fillStyle = '#f90';
-    ctx.beginPath();
-    ctx.arc(x, y, 5 + Math.random()*5, 0, Math.PI*2);
-    ctx.fill();
+    
+    ctx.restore();
 }
 
-function updateTimer() {
-    if (timeLeft <= 0) {
-        clearInterval(timerId);
-        timerDisplay.textContent = "BOOM!";
-        timerDisplay.style.fontSize = "5rem";
-        return;
+function animate() {
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    
+    drawBomb();
+    drawFuse();
+    
+    if (isRunning) {
+        requestAnimationFrame(animate);
+    } else {
+        // Ensure static draw
+        drawBomb();
+        drawFuse();
     }
-
-    const mins = Math.floor(timeLeft / 60);
-    const secs = timeLeft % 60;
-    timerDisplay.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    
-    const progress = timeLeft / totalTime;
-    drawBomb(progress);
-    
-    timeLeft--;
 }
 
-startBtn.addEventListener('click', () => {
-    clearInterval(timerId);
-    const mins = parseInt(minutesInput.value);
-    if (isNaN(mins) || mins < 1 || mins > 60) return;
-
-    timeLeft = mins * 60;
-    totalTime = timeLeft;
-    timerDisplay.style.fontSize = "3rem";
-    
-    timerId = setInterval(updateTimer, 1000);
-    updateTimer();
-
-    // Start sparkle animation
-    function animate() {
-        if (timeLeft > 0) {
-            drawBomb(timeLeft / totalTime);
-            animationId = requestAnimationFrame(animate);
-        }
-    }
-    cancelAnimationFrame(animationId);
-    animate();
-});
-
-drawBomb(0);
+// Initial draw
+generateMessyFuse();
+animate();
