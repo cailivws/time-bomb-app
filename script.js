@@ -1,294 +1,239 @@
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const timerDisplay = document.getElementById('timerDisplay');
-const minuteValueSpan = document.getElementById('minuteValue');
-const actionBtn = document.getElementById('actionBtn');
+window.onload = function() {
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const startBtn = document.getElementById('startBtn');
 
-// Handle High DPI
-const dpr = window.devicePixelRatio || 1;
-const rect = canvas.getBoundingClientRect();
-canvas.width = rect.width * dpr;
-canvas.height = rect.height * dpr;
-ctx.scale(dpr, dpr);
-
-// State
-let settingsSeconds = 60;
-let startTime = 0;
-let endTime = 0;
-let isRunning = false;
-let isExploding = false;
-let fusePath = [];
-let particles = [];
-
-// --- Fuse Generation ---
-function generateMessyFuse() {
-    fusePath = [];
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2 + 50;
+    // Logical resolution (fixed)
+    const WIDTH = 800;
+    const HEIGHT = 800;
     
-    let currX = centerX;
-    let currY = centerY - 60; // Top of bomb
-    
-    fusePath.push({x: currX, y: currY});
-    currY -= 30;
-    fusePath.push({x: currX, y: currY});
+    // Game State
+    let durationSec = 60;
+    let endTime = 0;
+    let isRunning = false;
+    let exploded = false;
+    let fusePoints = [];
+    let particles = [];
 
-    const pointsCount = 150; 
-    let angle = -Math.PI / 2;
-    
-    for (let i = 0; i < pointsCount; i++) {
-        angle += (Math.random() - 0.5) * 2.5;
-        const stepSize = 10 + Math.random() * 15;
-        currX += Math.cos(angle) * stepSize;
-        currY += Math.sin(angle) * stepSize;
+    // --- Generate Fuse (Deterministic) ---
+    function initFuse() {
+        fusePoints = [];
+        // Bomb center is approx (400, 600)
+        let cx = 400;
+        let cy = 550;
         
-        if (currX < 50) angle = 0; 
-        if (currX > rect.width - 50) angle = Math.PI;
-        if (currY < 50) angle = Math.PI / 2;
-        if (currY > rect.height - 100) angle = -Math.PI / 2;
+        // Start at top of bomb
+        fusePoints.push({x: cx, y: cy - 70});
+        fusePoints.push({x: cx, y: cy - 120}); // Straight up stem
 
-        fusePath.push({x: currX, y: currY});
+        // Winding chaos
+        let currX = cx;
+        let currY = cy - 120;
+        let angle = -Math.PI / 2;
+
+        for(let i=0; i<200; i++) {
+            angle += (Math.random() - 0.5) * 2.0;
+            let step = 15;
+            currX += Math.cos(angle) * step;
+            currY += Math.sin(angle) * step;
+
+            // Soft boundaries (keep inside 50-750)
+            if(currX < 50) angle = 0;
+            if(currX > 750) angle = Math.PI;
+            if(currY < 50) angle = Math.PI/2;
+            if(currY > 500) angle = -Math.PI/2;
+
+            fusePoints.push({x: currX, y: currY});
+        }
     }
-}
 
-// --- Interaction ---
-window.adjustTime = function(amount) {
-    if (isRunning) return;
-    settingsSeconds += amount;
-    if (settingsSeconds < 10) settingsSeconds = 10;
-    if (settingsSeconds > 120) settingsSeconds = 120;
-    
-    minuteValueSpan.textContent = settingsSeconds;
-    
-    const m = Math.floor(settingsSeconds / 60);
-    const s = settingsSeconds % 60;
-    timerDisplay.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-}
+    // --- Drawing ---
+    function draw() {
+        ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
-actionBtn.addEventListener('click', () => {
-    if (isRunning || isExploding) {
-        reset();
-    } else {
-        start();
-    }
-});
+        // 1. Draw Bomb
+        const cx = 400;
+        const cy = 550;
+        
+        // Cap
+        ctx.fillStyle = "#95a5a6";
+        ctx.fillRect(cx - 40, cy - 100, 80, 40);
+        ctx.strokeStyle = "#2c3e50";
+        ctx.lineWidth = 5;
+        ctx.strokeRect(cx - 40, cy - 100, 80, 40);
 
-function start() {
-    isRunning = true;
-    isExploding = false;
-    startTime = Date.now();
-    endTime = startTime + (settingsSeconds * 1000);
-    
-    actionBtn.textContent = "STOP";
-    actionBtn.classList.add('running');
-    
-    generateMessyFuse();
-    requestAnimationFrame(loop);
-}
+        // Body
+        ctx.beginPath();
+        ctx.arc(cx, cy, 120, 0, Math.PI * 2);
+        ctx.fillStyle = "#2c3e50";
+        ctx.fill();
+        ctx.stroke();
 
-function reset() {
-    isRunning = false;
-    isExploding = false;
-    particles = [];
-    actionBtn.textContent = "START!";
-    actionBtn.classList.remove('running');
-    window.adjustTime(0); // Reset display
-}
+        // Shine
+        ctx.beginPath();
+        ctx.arc(cx - 40, cy - 40, 30, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255,255,255,0.2)";
+        ctx.fill();
 
-function boom() {
-    isRunning = false;
-    isExploding = true;
-    timerDisplay.textContent = "BOOM!";
-    createExplosion();
-}
+        // 2. Draw Fuse
+        if (fusePoints.length > 0 && !exploded) {
+            let limit = fusePoints.length;
+            if (isRunning) {
+                const timeLeft = Math.max(0, endTime - Date.now());
+                const totalTime = durationSec * 1000;
+                const progress = timeLeft / totalTime; // 1.0 -> 0.0
+                limit = Math.floor(fusePoints.length * progress);
+            }
 
-// --- Explosion Logic ---
-function createExplosion() {
-    const cx = rect.width / 2;
-    const cy = rect.height / 2 + 50;
-    
-    for (let i = 0; i < 100; i++) {
-        particles.push({
-            x: cx,
-            y: cy,
-            vx: (Math.random() - 0.5) * 15,
-            vy: (Math.random() - 0.5) * 15,
-            radius: Math.random() * 10 + 5,
-            color: `hsl(${Math.random() * 60}, 100%, 50%)`, // Red/Orange/Yellow
-            alpha: 1,
-            decay: Math.random() * 0.02 + 0.01
-        });
-    }
-}
+            if (limit > 1) {
+                ctx.beginPath();
+                ctx.moveTo(fusePoints[0].x, fusePoints[0].y);
+                for(let i=1; i<limit; i++) {
+                    ctx.lineTo(fusePoints[i].x, fusePoints[i].y);
+                }
+                ctx.lineCap = "round";
+                ctx.lineJoin = "round";
+                
+                // Rope Color
+                ctx.lineWidth = 12;
+                ctx.strokeStyle = "#8d6e63"; // Brown
+                ctx.stroke();
+                
+                // Texture (Dots)
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = "#d7ccc8"; // Light Tan
+                ctx.setLineDash([5, 15]);
+                ctx.stroke();
+                ctx.setLineDash([]);
 
-function updateAndDrawExplosion() {
-    // Fill background slightly for trail effect
-    ctx.fillStyle = 'rgba(78, 205, 196, 0.3)'; // Match bg color with transparency
-    ctx.fillRect(0, 0, rect.width, rect.height);
-
-    for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.alpha -= p.decay;
-        p.radius *= 0.96; // Shrink
-
-        if (p.alpha <= 0) {
-            particles.splice(i, 1);
-            continue;
+                // 3. Spark at tip
+                const tip = fusePoints[limit-1];
+                drawSpark(tip.x, tip.y);
+            }
         }
 
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${parseFloat(p.color.split(',')[0].split('(')[1])}, 100%, 50%, ${p.alpha})`;
-        ctx.fill();
-    }
-    
-    if (particles.length === 0) {
-        isExploding = false;
-        reset();
-    }
-}
+        // 4. Explosion
+        if (exploded) {
+            updateExplosion();
+        }
 
-// --- Main Loop ---
-function loop() {
-    if (!isRunning && !isExploding) return;
-
-    ctx.clearRect(0, 0, rect.width, rect.height);
-
-    if (isExploding) {
-        updateAndDrawExplosion();
-        requestAnimationFrame(loop);
-        return;
+        requestAnimationFrame(draw);
     }
 
-    const now = Date.now();
-    const timeLeftMs = Math.max(0, endTime - now);
-    
-    // Update Display
-    const totalSecsLeft = Math.ceil(timeLeftMs / 1000);
-    const m = Math.floor(totalSecsLeft / 60);
-    const s = totalSecsLeft % 60;
-    timerDisplay.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-
-    if (timeLeftMs <= 0) {
-        boom();
-        requestAnimationFrame(loop);
-        return;
-    }
-
-    drawBomb();
-    drawFuse(timeLeftMs / (settingsSeconds * 1000));
-    
-    requestAnimationFrame(loop);
-}
-
-// --- Drawing ---
-function drawBomb() {
-    const cx = rect.width / 2;
-    const cy = rect.height / 2 + 50;
-    const r = 60;
-
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fillStyle = "#2C3E50"; 
-    ctx.fill();
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = "#000";
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(cx - 20, cy - 20, 15, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(255,255,255,0.2)";
-    ctx.fill();
-
-    ctx.fillStyle = "#95A5A6";
-    ctx.fillRect(cx - 20, cy - r - 15, 40, 20);
-    ctx.strokeRect(cx - 20, cy - r - 15, 40, 20);
-}
-
-function drawFuse(percentage) {
-    if (fusePath.length < 2) return;
-
-    // Smooth float index calculation
-    const fullIndex = (fusePath.length - 1) * percentage;
-    const maxIndex = Math.floor(fullIndex);
-    const remainder = fullIndex - maxIndex;
-    
-    if (maxIndex < 0) return;
-
-    ctx.beginPath();
-    ctx.moveTo(fusePath[0].x, fusePath[0].y);
-    
-    for (let i = 1; i <= maxIndex; i++) {
-        ctx.lineTo(fusePath[i].x, fusePath[i].y);
-    }
-
-    // Partial segment for ultra-smooth burning
-    if (maxIndex < fusePath.length - 1) {
-        const p1 = fusePath[maxIndex];
-        const p2 = fusePath[maxIndex + 1];
-        const partialX = p1.x + (p2.x - p1.x) * remainder;
-        const partialY = p1.y + (p2.y - p1.y) * remainder;
-        ctx.lineTo(partialX, partialY);
+    function drawSpark(x, y) {
+        const t = Date.now() / 50;
+        const size = 20 + Math.sin(t) * 5;
         
-        // Draw spark at tip
-        drawSpark(partialX, partialY);
-    } else {
-        // Full fuse (at start)
-        const tip = fusePath[fusePath.length-1];
-        drawSpark(tip.x, tip.y);
-    }
-    
-    // Draw textured rope effect
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    
-    // DEBUG: Force High Visibility
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    
-    ctx.setLineDash([]);
-    ctx.lineWidth = 10;
-    ctx.strokeStyle = "#D2691E"; // Chocolate / Orange-Brown
-    ctx.stroke();
-    
-    // Simple solid line for now to ensure visibility
-    // (Texture removed temporarily to debug)
-}
-
-function drawSpark(x, y) {
-    const time = Date.now() / 50; // Faster flicker
-    const size = 15 + Math.sin(time) * 5;
-    
-    ctx.save();
-    ctx.translate(x, y);
-    
-    ctx.beginPath();
-    ctx.arc(0, 0, size/2, 0, Math.PI*2);
-    ctx.fillStyle = "#FFF";
-    ctx.fill();
-    
-    ctx.beginPath();
-    ctx.arc(0, 0, size, 0, Math.PI*2);
-    ctx.fillStyle = "rgba(255, 200, 0, 0.7)";
-    ctx.fill();
-    
-    for(let i=0; i<8; i++) {
-        const angle = (Math.PI * 2 * i) / 8 + time;
-        const dist = size * 1.5;
-        const px = Math.cos(angle) * dist;
-        const py = Math.sin(angle) * dist;
+        ctx.save();
+        ctx.translate(x, y);
         
+        // Glow
         ctx.beginPath();
-        ctx.arc(px, py, 3, 0, Math.PI*2);
-        ctx.fillStyle = "#FF4500";
+        ctx.arc(0, 0, size, 0, Math.PI*2);
+        ctx.fillStyle = "rgba(255, 204, 0, 0.6)";
         ctx.fill();
-    }
-    
-    ctx.restore();
-}
 
-generateMessyFuse();
-drawBomb();
-drawFuse(1); // Show full fuse initially
+        // Core
+        ctx.beginPath();
+        ctx.arc(0, 0, size/2, 0, Math.PI*2);
+        ctx.fillStyle = "#fff";
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    // --- Explosion Particles ---
+    function triggerExplosion() {
+        exploded = true;
+        isRunning = false;
+        timerDisplay.textContent = "BOOM!";
+        timerDisplay.style.color = "#e74c3c";
+        
+        particles = [];
+        for(let i=0; i<100; i++) {
+            particles.push({
+                x: 400,
+                y: 550,
+                vx: (Math.random() - 0.5) * 30,
+                vy: (Math.random() - 0.5) * 30,
+                life: 1.0,
+                color: `hsl(${Math.random()*60}, 100%, 50%)`
+            });
+        }
+    }
+
+    function updateExplosion() {
+        for(let p of particles) {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 0.02;
+            p.vy += 0.5; // gravity
+
+            if(p.life > 0) {
+                ctx.globalAlpha = p.life;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 10, 0, Math.PI*2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+        }
+    }
+
+    // --- Timer Logic ---
+    function updateTimer() {
+        if (!isRunning) return;
+        
+        const now = Date.now();
+        const left = Math.max(0, endTime - now);
+        
+        const sec = Math.ceil(left / 1000);
+        const m = Math.floor(sec / 60).toString().padStart(2, '0');
+        const s = (sec % 60).toString().padStart(2, '0');
+        timerDisplay.textContent = `${m}:${s}`;
+
+        if (left <= 0) {
+            triggerExplosion();
+        } else {
+            setTimeout(updateTimer, 50);
+        }
+    }
+
+    // --- Controls ---
+    window.changeTime = function(delta) {
+        if (isRunning) return;
+        durationSec += delta;
+        if (durationSec < 10) durationSec = 10;
+        if (durationSec > 300) durationSec = 300;
+        
+        const m = Math.floor(durationSec / 60).toString().padStart(2, '0');
+        const s = (durationSec % 60).toString().padStart(2, '0');
+        timerDisplay.textContent = `${m}:${s}`;
+    }
+
+    startBtn.onclick = function() {
+        if (isRunning) {
+            // Stop/Reset
+            isRunning = false;
+            exploded = false;
+            initFuse();
+            startBtn.textContent = "START";
+            startBtn.style.background = "";
+            window.changeTime(0); // reset text
+        } else {
+            // Start
+            isRunning = true;
+            exploded = false;
+            initFuse(); // Fresh fuse
+            endTime = Date.now() + durationSec * 1000;
+            startBtn.textContent = "STOP";
+            startBtn.style.background = "#e74c3c";
+            updateTimer();
+        }
+    }
+
+    // Init
+    initFuse();
+    draw();
+};

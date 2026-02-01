@@ -2,32 +2,31 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tick Tock Boom!</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tick Tock Boom! v2</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app-container">
+    <div class="game-container">
         <h1 class="title">TICK TOCK BOOM!</h1>
         
-        <div class="timer-display" id="timerDisplay">01:00</div>
-
-        <div class="canvas-wrapper">
-            <canvas id="gameCanvas" width="600" height="600"></canvas>
+        <div id="timerDisplay">01:00</div>
+        
+        <div class="canvas-box">
+            <canvas id="gameCanvas" width="800" height="800"></canvas>
         </div>
 
         <div class="controls">
-            <div class="time-setter">
-                <button class="adjust-btn" onclick="adjustTime(-10)">-</button>
-                <span id="minuteValue">60</span> SEC
-                <button class="adjust-btn" onclick="adjustTime(10)">+</button>
+            <div class="btn-group">
+                <button onclick="changeTime(-10)">-10s</button>
+                <button onclick="changeTime(10)">+10s</button>
             </div>
-            <button id="actionBtn" class="start-btn">START!</button>
+            <button id="startBtn" class="big-btn">START</button>
         </div>
     </div>
-    <script src="script.js?v=5"></script>
+    <script src="script.js"></script>
 </body>
 </html>
