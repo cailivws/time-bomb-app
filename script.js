@@ -240,16 +240,36 @@ function drawFuse(percentage) {
         drawSpark(tip.x, tip.y);
     }
     
+    // Draw textured rope effect
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.lineWidth = 6;
-    ctx.strokeStyle = "#5D4037";
+    
+    // Base thick dark rope
+    ctx.lineWidth = 7;
+    ctx.strokeStyle = "#3E2723"; // Dark brown
     ctx.stroke();
     
-    ctx.setLineDash([5, 5]);
+    // Braided texture - multiple offset dashed lines
     ctx.lineWidth = 2;
-    ctx.strokeStyle = "#8D6E63";
+    
+    // Strand 1
+    ctx.strokeStyle = "#8D6E63"; // Light brown
+    ctx.setLineDash([4, 4]);
+    ctx.lineDashOffset = 0;
     ctx.stroke();
+    
+    // Strand 2 (Offset)
+    ctx.strokeStyle = "#A1887F"; // Lighter tan
+    ctx.setLineDash([4, 4]);
+    ctx.lineDashOffset = 4;
+    ctx.stroke();
+    
+    // Rough edges (messy tinder feel)
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "#D7CCC8"; // Very light fraying
+    ctx.setLineDash([2, 10]);
+    ctx.stroke();
+    
     ctx.setLineDash([]);
 }
 
