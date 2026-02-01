@@ -52,29 +52,31 @@ window.onload = function() {
     function draw() {
         ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
-        // 1. Draw Bomb
+        // 1. Draw Bomb (Only if not exploded)
         const cx = 400;
         const cy = 550;
         
-        // Cap
-        ctx.fillStyle = "#95a5a6";
-        ctx.fillRect(cx - 40, cy - 100, 80, 40);
-        ctx.strokeStyle = "#2c3e50";
-        ctx.lineWidth = 5;
-        ctx.strokeRect(cx - 40, cy - 100, 80, 40);
+        if (!exploded) {
+            // Cap
+            ctx.fillStyle = "#95a5a6";
+            ctx.fillRect(cx - 40, cy - 100, 80, 40);
+            ctx.strokeStyle = "#2c3e50";
+            ctx.lineWidth = 5;
+            ctx.strokeRect(cx - 40, cy - 100, 80, 40);
 
-        // Body
-        ctx.beginPath();
-        ctx.arc(cx, cy, 120, 0, Math.PI * 2);
-        ctx.fillStyle = "#2c3e50";
-        ctx.fill();
-        ctx.stroke();
+            // Body
+            ctx.beginPath();
+            ctx.arc(cx, cy, 120, 0, Math.PI * 2);
+            ctx.fillStyle = "#2c3e50";
+            ctx.fill();
+            ctx.stroke();
 
-        // Shine
-        ctx.beginPath();
-        ctx.arc(cx - 40, cy - 40, 30, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(255,255,255,0.2)";
-        ctx.fill();
+            // Shine
+            ctx.beginPath();
+            ctx.arc(cx - 40, cy - 40, 30, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(255,255,255,0.2)";
+            ctx.fill();
+        }
 
         // 2. Draw Fuse
         if (fusePoints.length > 0 && !exploded) {
@@ -151,29 +153,35 @@ window.onload = function() {
         timerDisplay.style.color = "#e74c3c";
         
         particles = [];
-        for(let i=0; i<100; i++) {
+        // HUGE explosion: more particles, faster speed
+        for(let i=0; i<400; i++) {
             particles.push({
                 x: 400,
                 y: 550,
-                vx: (Math.random() - 0.5) * 30,
-                vy: (Math.random() - 0.5) * 30,
-                life: 1.0,
-                color: `hsl(${Math.random()*60}, 100%, 50%)`
+                vx: (Math.random() - 0.5) * 50, // Faster
+                vy: (Math.random() - 0.5) * 50,
+                life: 1.0 + Math.random() * 0.5, // Longer life
+                size: Math.random() * 15 + 5,
+                color: `hsl(${Math.random()*60}, 100%, 60%)` // Bright fire colors
             });
         }
     }
 
     function updateExplosion() {
+        // Flash background
+        ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0, particles[0]?.life - 0.8)})`;
+        ctx.fillRect(0,0, WIDTH, HEIGHT);
+
         for(let p of particles) {
             p.x += p.vx;
             p.y += p.vy;
-            p.life -= 0.02;
-            p.vy += 0.5; // gravity
+            p.life -= 0.015; // Slow fade
+            p.vy += 0.2; // Gravity
 
             if(p.life > 0) {
-                ctx.globalAlpha = p.life;
+                ctx.globalAlpha = Math.min(1, p.life);
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, 10, 0, Math.PI*2);
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
                 ctx.fillStyle = p.color;
                 ctx.fill();
                 ctx.globalAlpha = 1.0;
